@@ -1,0 +1,107 @@
+---
+title: "Untitled"
+output: html_document
+---
+##Question 1
+Split the data in two sets: A training set and a holdout set. We will use the first 39 weeks for training, the second 39 weeks for holdout testing (hint: The cut-off date is 30-09-1997).
+```{r}
+library(BTYD)
+library(dplyr)
+setwd("~/Documents/BISSmaster/SDSS/tut2")
+load("CDnow data.RData")
+cdnow <- rename(cdnow, date = Date, cust = ID, sales = N.CD, value = Value)
+cdnow <- dc.MergeTransactionsOnSameDate(cdnow)#merge transactions
+end.of.train.period <- as.Date("1997-09-30")
+cdnow.train <- cdnow[which(cdnow$date <= end.of.train.period), ]
+cdnow.test <- cdnow[which(cdnow$date > end.of.train.period), ]
+```
+
+##Question 2
+```{r}
+#To obtain the correct values requested in question 2, the BTYD package provides some convenient data cleaning (dc.) functions. Applying this set of functions results in the train.cbs object that contains all variables requested.
+split.data <- dc.SplitUpElogForRepeatTrans(cdnow.train)#This function returns a filtered version where the first transaction is ignored because we are interested in repeat purchases
+clean.cdnow <- split.data$repeat.trans.elog#This is the repeated purchase dataframe containing only the repeat purchases
+freq.cbt <- dc.CreateFreqCBT(clean.cdnow) #This matrix is an overview of when repeat purchases for every customer occurred. The problem is though that the customers who did not do any repeat purchases are not in there, so we need to include them as well. This can be done as follows:
+tot.cbt <- dc.CreateFreqCBT(cdnow)
+train.cbt <- dc.MergeCustomers(tot.cbt, freq.cbt)
+
+#Now we can make a dataframe with the first purchase date, last purchase date and the end of the training period:
+birth.periods <- split.data$cust.data$birth.per
+last.dates <- split.data$cust.data$last.date
+train.cbs.dates <- data.frame(birth.periods, last.dates, end.of.train.period)
+
+#From the train.cbt and the train.cbs.dates, the train.cbs object can be built:
+train.cbs <- dc.BuildCBSFromCBTAndDates(train.cbt, train.cbs.dates, per = "week")
+train.cbs.df <- as.data.frame(train.cbs)
+```
+
+x: The number of repeat purchases (i.e. after the first purchase) for
+customer i. This is 0 when no repeat purchases are made.
+```{r}
+#If we want to know the total number of repeat purchases per customer (where the customer ID is the index):
+x <- rowSums(as.data.frame(train.cbt))
+```
+T.x: The week of the last purchase. This can be a decimal number, e.g.
+33.45 implies a purchase was made halfway through week 33.
+```{r}
+T.x <- as.data.frame(train.cbs)$t.x
+```
+T.cal: The length during which purchases could have occurred. This is the
+time (in weeks) between the first purchase date and the cut-off date. The
+maximum attainable value is 38.86 (i.e. one day after 01-01-1997, the
+start of the data period)
+```{r}
+T.cal <- as.data.frame(train.cbs)$T.cal
+```
+
+##Question 3
+Use the functions contained in the BTYD library. In particular, the function
+bgnbd.EstimateParameters() allows you to estimate parameters for the
+BG/NBD model. Make sure to pick different initial values for each
+parameter, and avoid that b <1 as initial value.
+```{r}
+#to estimate the parameters we use the EstimateParameters() function:
+params <- bgnbd.EstimateParameters(train.cbs)
+#The log likelihood is:
+LL <- bgnbd.cbs.LL(params, train.cbs)
+#to make sure the model converges and is consistent, we run it a couple of times:
+p.matrix <- c(params, LL)
+for (i in 1:5){
+  params <- bgnbd.EstimateParameters(train.cbs, params)
+  LL <- bgnbd.cbs.LL(params, train.cbs)
+  p.matrix.row <- c(params, LL)
+  p.matrix <- rbind(p.matrix,p.matrix.row)
+}
+colnames(p.matrix)<- c("r", "alpha", "a", "b", "LL")
+rownames(p.matrix)<- 1:6
+p.matrix
+#based on the result, it seem that the model converged, so it is ready to use. 
+```
+##Question 4
+Now we can create sales forecasts given the parameters. Use the
+bgnbd.ExpectedCumulativeTransactions() to compute the cumulative number of
+daily transactions for the remaining 39 weeks of the sample. Compare your
+forecast to the actual number
+```{r}
+expectedTransactions <- bgnbd.ExpectedCumulativeTransactions(params, T.cal=train.cbs[,"T.cal"],T.tot=39, n.periods.final = 273)#with this function we can estimate how many transactions we'll receive by the end of the testing period. The actual number of transactions is by the end of that period is:
+sprintf("The actual number of transactions in the test period is: %s",nrow(cdnow.test))
+sprintf("The predicted number of transactions in the test period is: %s", tail(expectedTransactions, n=1))
+
+#This shows that the model this shows that the model os off by 618 transactions
+```
+
+##Question 5
+So far, we have not based our predictions on the past. Compute the expected
+number of transactions in the final 39 weeks for a customer with history (x,
+T.x,T.cal).
+```{r}
+x <- train.cbs["1516","x"]
+t.x <- train.cbs["1516", "t.x"]
+T.cal <- train.cbs["1516", "T.cal"]
+
+bgnbd.ConditionalExpectedTransactions(params, T.star=52, x,t.x,T.cal)#Predictions for 52 weeks
+```
+
+
+
+
