@@ -100,8 +100,40 @@ t.x <- train.cbs["1516", "t.x"]
 T.cal <- train.cbs["1516", "T.cal"]
 
 bgnbd.ConditionalExpectedTransactions(params, T.star=52, x,t.x,T.cal)#Predictions for 52 weeks
+bgnbd.PAlive()
 ```
 
+##Extension
+If we need to make a decision on whether to spend advertising budget on customer 1516, how would we go about making this decision? Use the paper from Reinhartz and Kumar (2003) as guideline, and the bgnbd.PAlive() function from the BTYD package. 
+
+##Solution
+To decide on whether we keep investing in customer 1516 we need to do the following:
+1. calculate the NPV of the expected contribution margin
+2. compare this to the cost of marketing, and terminate if the marketing cost is higher than the NPV
+3. calculate the finite lifetime estimates
+4. conduct back-end performance analysis
+
+
+
+We'll go through these steps step-by-step below:
+###1.
+```{r}
+cdnow.train$rev <- cdnow.train$sales*cdnow.train$value
+cdnow.train$gross.profit <- (cdnow.train$rev*0.7)-40
+cdnow.train$cm <- cdnow.train$gross.profit/cdnow.train$sales
+#Let's say you want to make a decision at the end of every week:
+cdnow.train$weeknr <- as.numeric(sapply(cdnow.train$date, strftime, format="%V"))+1
+
+cdnow.train["1516",]
+cms <- c()
+for(i in 1:30){
+  discountedCM <- bgnbd.PAlive(params, x,t.x, T.cal) * cdnow.train["1516","cm"]*((1/(1.000393))^i)
+  cms <- c(cms, discountedCM)
+}
+sum(cms)
+
+sprintf("Should we spend advertising money on this customer?: %s",ifelse(sum(cms)>40,"Yes","No"))
+```
 
 
 
