@@ -102,8 +102,6 @@ T.x,T.cal).
 x <- train.cbs["3","x"]
 t.x <- train.cbs["3", "t.x"]
 T.cal <- train.cbs["3", "T.cal"]
-
-bgnbd.PAlive(params, x,t.x,T.cal)
 bgnbd.ConditionalExpectedTransactions(params, T.star=52, x,t.x,T.cal)#Predictions for 52 weeks
 ```
 
@@ -123,29 +121,29 @@ To decide on whether we keep investing in customer 1516 we need to do the follow
 We'll go through these steps step-by-step below:
 ###1.
 ```{r}
-cdnow.train$rev <- cdnow.train$sales*cdnow.train$value
-cdnow.train$gross.profit <- (cdnow.train$rev*0.3)
-cdnow.train$weeknr <- as.numeric(sapply(cdnow.train$date, strftime, format = "%V"))
-weeklycm <- tapply(cdnow.train$rev, list(cdnow.train$cust, cdnow.train$weeknr), sum)
-weeklycm[is.na(test)] <-0
-weeklycm <- (test-2)/7
+cdnow.train$rev <- cdnow.train$sales*cdnow.train$value #Compute revenue
+cdnow.train$gross.profit <- (cdnow.train$rev*0.3) #compute gross profit
+cdnow.train$weeknr <- as.numeric(sapply(cdnow.train$date, strftime, format = "%V")) #generate week number for each log entry
+weeklycm <- tapply(cdnow.train$gross.profit, list(cdnow.train$cust, cdnow.train$weeknr), sum) #aggregate the gross profit for each customer to a weekly level
+weeklycm[is.na(weeklycm)] <-0 #remove missing values
+weeklycm <- (weeklycm-2)/7 #compute average weekly contribution margin
+weeklycm <- rowSums(weeklycm)/39 #compute expected average weekly contribution margin
 
-weeklycm <- rowSums(test)/39
-
+#Below we want to make a decision after 8 weeks whether or not to invest in the customer. To do this we discount the expected average weekly contribution margin for week 1 through 8 and multiply it with the probability of the customer being alive (as described in the paper and assuming an annual effective discount rate of 15%). Then, we compute the NPV of the marketing expenditures. If we assume that marketing costs amount to 2 euros per customer on a weekly basis we can compute the NPV of this expenditure flow. Then we examine whether the NPV of the expected contribution margin is larger than the NPV of the marketing expenditures. 
 cdnow.train["1516",]
-cms <- c()
-for(i in 1:30){
+NPV_ECM <- c()
+for(i in 1:8){
   discountedCM <- bgnbd.PAlive(params, x,t.x, T.cal) * weeklycm[1516]*((1/(1.002691))^i)
-  cms <- c(cms, discountedCM)
+  NPV_ECM <- c(NPV_ECM, discountedCM)
 }
 
 marketingcostsTotal <- c()
-for(i in 1:30){
+for(i in 1:8){
   discountedMarketingCosts <- 2*((1/(1.002691))^i)
   marketingcostsTotal <- c(marketingcostsTotal, discountedMarketingCosts)
 }
 
-sprintf("Should we spend advertising money on this customer?: %s because the NPV of ECM is %s and the discounted marketing costs are %s",ifelse(sum(cms)>sum(marketingcostsTotal),"Yes","No"), sum(cms),sum(marketingcostsTotal))
+sprintf("Should we spend advertising money on this customer?: %s because the NPV of ECM is %s and the discounted marketing costs are %s",ifelse(sum(NPV_ECM)>sum(marketingcostsTotal),"Yes","No"), sum(NPV_ECM),sum(marketingcostsTotal))
 ```
 
 
