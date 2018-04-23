@@ -79,7 +79,8 @@ for (i in 1:5){
 colnames(p.matrix)<- c("r", "alpha", "a", "b", "LL")
 rownames(p.matrix)<- 1:6
 p.matrix
-#based on the result, it seem that the model converged, so it is ready to use. 
+#based on the result, it seem that the model converged, so it is ready to use.
+params
 ```
 ##Question 4
 Now we can create sales forecasts given the parameters. Use the
@@ -99,9 +100,9 @@ So far, we have not based our predictions on the past. Compute the expected
 number of transactions in the final 39 weeks for a customer with history (x,
 T.x,T.cal).
 ```{r}
-x <- train.cbs["3","x"]
-t.x <- train.cbs["3", "t.x"]
-T.cal <- train.cbs["3", "T.cal"]
+x <- train.cbs["1516","x"]
+t.x <- train.cbs["1516", "t.x"]
+T.cal <- train.cbs["1516", "T.cal"]
 bgnbd.ConditionalExpectedTransactions(params, T.star=52, x,t.x,T.cal)#Predictions for 52 weeks
 ```
 
@@ -118,7 +119,7 @@ To decide on whether we keep investing in customer 9 we need to do the following
 
 We'll go through these steps step-by-step below:
 ```{r}
-cdnow.train$rev <- cdnow.train$sales*cdnow.train$value #Compute revenue
+cdnow.train$rev <- cdnow.train$value #Compute revenue
 cdnow.train$gross.profit <- (cdnow.train$rev*0.3) #compute gross profit
 cdnow.train$weeknr <- as.numeric(sapply(cdnow.train$date, strftime, format = "%V")) #generate week number for each log entry
 weeklycm <- tapply(cdnow.train$gross.profit, list(cdnow.train$cust, cdnow.train$weeknr), sum) #aggregate the gross profit for each customer to a weekly level
