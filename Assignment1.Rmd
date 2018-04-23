@@ -116,10 +116,7 @@ To decide on whether we keep investing in customer 1516 we need to do the follow
 3. calculate the finite lifetime estimates
 4. conduct back-end performance analysis
 
-
-
 We'll go through these steps step-by-step below:
-###1.
 ```{r}
 cdnow.train$rev <- cdnow.train$sales*cdnow.train$value #Compute revenue
 cdnow.train$gross.profit <- (cdnow.train$rev*0.3) #compute gross profit
@@ -130,18 +127,24 @@ weeklycm <- (weeklycm-2)/7 #compute average weekly contribution margin
 weeklycm <- rowSums(weeklycm)/39 #compute expected average weekly contribution margin
 
 #Below we want to make a decision after 8 weeks whether or not to invest in the customer. To do this we discount the expected average weekly contribution margin for week 1 through 8 and multiply it with the probability of the customer being alive (as described in the paper and assuming an annual effective discount rate of 15%). Then, we compute the NPV of the marketing expenditures. If we assume that marketing costs amount to 2 euros per customer on a weekly basis we can compute the NPV of this expenditure flow. Then we examine whether the NPV of the expected contribution margin is larger than the NPV of the marketing expenditures. 
-cdnow.train["1516",]
+x <- train.cbs["9","x"]
+t.x <- train.cbs["9", "t.x"]
+T.cal <- train.cbs["9", "T.cal"]
+weeklyDiscountFactor <- (1+0.15)^(1/52)
+
 NPV_ECM <- c()
 for(i in 1:8){
-  discountedCM <- bgnbd.PAlive(params, x,t.x, T.cal) * weeklycm[1516]*((1/(1.002691))^i)
+  discountedCM <- bgnbd.PAlive(params, x,t.x, T.cal) * weeklycm[9]*((1/(weeklyDiscountFactor))^i)
   NPV_ECM <- c(NPV_ECM, discountedCM)
 }
 
 marketingcostsTotal <- c()
 for(i in 1:8){
-  discountedMarketingCosts <- 2*((1/(1.002691))^i)
+  discountedMarketingCosts <- 2*((1/(weeklyDiscountFactor))^i)
   marketingcostsTotal <- c(marketingcostsTotal, discountedMarketingCosts)
 }
+
+train.cbs["9",]
 
 sprintf("Should we spend advertising money on this customer?: %s because the NPV of ECM is %s and the discounted marketing costs are %s",ifelse(sum(NPV_ECM)>sum(marketingcostsTotal),"Yes","No"), sum(NPV_ECM),sum(marketingcostsTotal))
 ```
