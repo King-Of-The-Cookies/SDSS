@@ -22,8 +22,10 @@ cdnow.test <- cdnow[which(cdnow$date > end.of.train.period), ]
 split.data <- dc.SplitUpElogForRepeatTrans(cdnow.train)#This function returns a filtered version where the first transaction is ignored because we are interested in repeat purchases
 clean.cdnow <- split.data$repeat.trans.elog#This is the repeated purchase dataframe containing only the repeat purchases
 freq.cbt <- dc.CreateFreqCBT(clean.cdnow) #This matrix is an overview of when repeat purchases for every customer occurred. The problem is though that the customers who did not do any repeat purchases are not in there, so we need to include them as well. This can be done as follows:
+freq.cbt[1:3,1:3]
 tot.cbt <- dc.CreateFreqCBT(cdnow)
 train.cbt <- dc.MergeCustomers(tot.cbt, freq.cbt)
+train.cbt[1:3,1:3]
 
 #Now we can make a dataframe with the first purchase date, last purchase date and the end of the training period:
 birth.periods <- split.data$cust.data$birth.per
@@ -33,13 +35,15 @@ train.cbs.dates <- data.frame(birth.periods, last.dates, end.of.train.period)
 #From the train.cbt and the train.cbs.dates, the train.cbs object can be built:
 train.cbs <- dc.BuildCBSFromCBTAndDates(train.cbt, train.cbs.dates, per = "week")
 train.cbs.df <- as.data.frame(train.cbs)
+train.cbs.df[1:3,1:3]
+#Here you can see the frequency of repeat purchases (x), the recency of the last purchase (t.x) and the total time that the customer was present (T.cal)
 ```
 
 x: The number of repeat purchases (i.e. after the first purchase) for
 customer i. This is 0 when no repeat purchases are made.
 ```{r}
 #If we want to know the total number of repeat purchases per customer (where the customer ID is the index):
-x <- rowSums(as.data.frame(train.cbt))
+x <- as.data.frame(train.cbs)$x
 ```
 T.x: The week of the last purchase. This can be a decimal number, e.g.
 33.45 implies a purchase was made halfway through week 33.
@@ -95,15 +99,16 @@ So far, we have not based our predictions on the past. Compute the expected
 number of transactions in the final 39 weeks for a customer with history (x,
 T.x,T.cal).
 ```{r}
-x <- train.cbs["1516","x"]
-t.x <- train.cbs["1516", "t.x"]
-T.cal <- train.cbs["1516", "T.cal"]
+x <- train.cbs["3","x"]
+t.x <- train.cbs["3", "t.x"]
+T.cal <- train.cbs["3", "T.cal"]
 
+bgnbd.PAlive(params, x,t.x,T.cal)
 bgnbd.ConditionalExpectedTransactions(params, T.star=52, x,t.x,T.cal)#Predictions for 52 weeks
-bgnbd.PAlive()
 ```
 
 ##Extension
+As future business analysts, we need to be able to advise the marketing department which customers to target and which customers to let go. In the Reinhartz and Kumar (2003) paper, a procedure is described to make these decisions. In the following case we'll implement the first 2 steps of this procedure, i.e. computing the NPV of the expected profit margin and comparing this to the marketing cost of a
 If we need to make a decision on whether to spend advertising budget on customer 1516, how would we go about making this decision? Use the paper from Reinhartz and Kumar (2003) as guideline, and the bgnbd.PAlive() function from the BTYD package. 
 
 ##Solution
@@ -119,20 +124,28 @@ We'll go through these steps step-by-step below:
 ###1.
 ```{r}
 cdnow.train$rev <- cdnow.train$sales*cdnow.train$value
-cdnow.train$gross.profit <- (cdnow.train$rev*0.7)-40
-cdnow.train$cm <- cdnow.train$gross.profit/cdnow.train$sales
-#Let's say you want to make a decision at the end of every week:
-cdnow.train$weeknr <- as.numeric(sapply(cdnow.train$date, strftime, format="%V"))+1
+cdnow.train$gross.profit <- (cdnow.train$rev*0.3)
+cdnow.train$weeknr <- as.numeric(sapply(cdnow.train$date, strftime, format = "%V"))
+weeklycm <- tapply(cdnow.train$rev, list(cdnow.train$cust, cdnow.train$weeknr), sum)
+weeklycm[is.na(test)] <-0
+weeklycm <- (test-2)/7
+
+weeklycm <- rowSums(test)/39
 
 cdnow.train["1516",]
 cms <- c()
 for(i in 1:30){
-  discountedCM <- bgnbd.PAlive(params, x,t.x, T.cal) * cdnow.train["1516","cm"]*((1/(1.000393))^i)
+  discountedCM <- bgnbd.PAlive(params, x,t.x, T.cal) * weeklycm[1516]*((1/(1.002691))^i)
   cms <- c(cms, discountedCM)
 }
-sum(cms)
 
-sprintf("Should we spend advertising money on this customer?: %s",ifelse(sum(cms)>40,"Yes","No"))
+marketingcostsTotal <- c()
+for(i in 1:30){
+  discountedMarketingCosts <- 2*((1/(1.002691))^i)
+  marketingcostsTotal <- c(marketingcostsTotal, discountedMarketingCosts)
+}
+
+sprintf("Should we spend advertising money on this customer?: %s because the NPV of ECM is %s and the discounted marketing costs are %s",ifelse(sum(cms)>sum(marketingcostsTotal),"Yes","No"), sum(cms),sum(marketingcostsTotal))
 ```
 
 
