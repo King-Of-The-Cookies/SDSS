@@ -107,10 +107,10 @@ bgnbd.ConditionalExpectedTransactions(params, T.star=52, x,t.x,T.cal)#Prediction
 
 ##Extension
 As future business analysts, we need to be able to advise the marketing department which customers to target and which customers to let go. In the Reinhartz and Kumar (2003) paper, a procedure is described to make these decisions. In the following case we'll implement the first 2 steps of this procedure, i.e. computing the NPV of the expected profit margin and comparing this to the marketing cost of a
-If we need to make a decision on whether to spend advertising budget on customer 1516, how would we go about making this decision? Use the paper from Reinhartz and Kumar (2003) as guideline, and the bgnbd.PAlive() function from the BTYD package. 
+If we need to make a decision on whether to spend advertising budget on customer 9, how would we go about making this decision? Use the paper from Reinhartz and Kumar (2003) as guideline, and the bgnbd.PAlive() function from the BTYD package. 
 
 ##Solution
-To decide on whether we keep investing in customer 1516 we need to do the following:
+To decide on whether we keep investing in customer 9 we need to do the following:
 1. calculate the NPV of the expected contribution margin
 2. compare this to the cost of marketing, and terminate if the marketing cost is higher than the NPV
 3. calculate the finite lifetime estimates
